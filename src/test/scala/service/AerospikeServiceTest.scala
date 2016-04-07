@@ -4,13 +4,12 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
-import com.aerospike.client.async.AsyncClient
-import com.aerospike.client.{Key, Bin, Record, AerospikeClient}
+import com.aerospike.client.AerospikeClient
 import com.jayway.awaitility.scala.AwaitilitySupport
 import com.typesafe.config.{Config, ConfigFactory}
 import dao.AerospikeDao
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSuiteLike}
-import service.AerospikeServiceEvents.{SynchronizeData, MakePurchase, AddOrUpdateData, GetData}
+import service.AerospikeServiceEvents.{GetData, MakePurchase, SynchronizeData}
 
 import scala.concurrent.duration._
 
@@ -46,12 +45,14 @@ class AerospikeServiceTest extends TestKit(ActorSystem("testSystem"))
   test("service synchronize data with cache") {
     val dao = new AerospikeDao(config, AerospikeServiceProps)
     val increment = 100
-    val before = dao.getData(1)
+
+    dao.updateData(Map(1->0))
+    val before = dao.getDataSync(1)
 
     aerospikeService.receive(MakePurchase(1, increment))
     aerospikeService.receive(SynchronizeData)
     TimeUnit.SECONDS.sleep(1)
 
-    assert(dao.getData(1) - before == increment)
+    assert(dao.getDataSync(1) - before == increment)
   }
 }

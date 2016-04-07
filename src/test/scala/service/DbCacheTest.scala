@@ -1,12 +1,12 @@
 package service
 
-import akka.actor.{FSM, ActorSystem}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
-import cache.{DbCache, DbCacheProps}
+import cache.DbCache
+import cache.DbCacheProps.{CacheData, CacheState}
 import com.jayway.awaitility.scala.AwaitilitySupport
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSuiteLike}
-import service.AerospikeServiceEvents.{AddOrUpdateData, SynchronizeData, MakePurchase}
-import DbCacheProps.{NonEmptyCache, CacheData, EmptyCache}
+import service.AerospikeServiceEvents.{AddOrUpdateData, MakePurchase, SynchronizeData}
 
 import scala.concurrent.duration._
 
@@ -25,24 +25,17 @@ class DbCacheTest extends TestKit(ActorSystem("testSystem"))
   }
 
   test("initial state and data of cache are correct") {
-    assert(dbCache.stateName == EmptyCache)
+    assert(dbCache.stateName == CacheState)
     assert(dbCache.stateData == CacheData(Map()))
   }
 
-  test("cache change its state to NonEmpty and vice versa") {
-    dbCache.setState(EmptyCache)
-    dbCache ! MakePurchase(1, 1)
-    assert(dbCache.stateName == NonEmptyCache)
-    dbCache ! SynchronizeData
-    assert(dbCache.stateName == EmptyCache
-    )
-  }
-
   test("cache data returns on transition from full to empty cache state") {
-    dbCache.setState(EmptyCache)
+    dbCache.setState(CacheState)
     dbCache ! MakePurchase(1, 1)
-    dbCache.setState(EmptyCache)
+    dbCache ! SynchronizeData
     expectMsg(AddOrUpdateData(Map(1 -> 1)))
+    assert(dbCache.stateData == CacheData(Map())
+    )
   }
 }
 

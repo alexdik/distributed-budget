@@ -37,7 +37,7 @@ class AerospikeService(config: Config) extends Actor with StrictLogging {
   val synchronizer = context.system.scheduler.schedule(1 seconds, 1 seconds, this.self, SynchronizeData)
 
   def receive: Receive = {
-    case GetData(clientId) => sender ! dao.getData(clientId)
+    case GetData(clientId) => dao.getDataAsync(clientId, dao.getDefaultAsyncReadListener(sender()))
     case purchase: MakePurchase => dbCache ! purchase
     case SynchronizeData => dbCache ! SynchronizeData
     case AddOrUpdateData(updateData) => dao.updateData(updateData)
