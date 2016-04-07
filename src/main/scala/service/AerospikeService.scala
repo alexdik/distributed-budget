@@ -29,12 +29,11 @@ object AerospikeServiceEvents {
 
 }
 
-class AerospikeService(config: Config, system: ActorSystem) extends Actor with StrictLogging {
-
-  import system.dispatcher
+class AerospikeService(config: Config) extends Actor with StrictLogging {
+  import scala.concurrent.ExecutionContext.Implicits.global
 
   val dao = new AerospikeDao(config, AerospikeServiceProps)
-  val dbCache = system.actorOf(Props(new DbCache))
+  val dbCache = context.system.actorOf(Props(new DbCache))
   val synchronizer = context.system.scheduler.schedule(1 seconds, 1 seconds, this.self, SynchronizeData)
 
   def receive: Receive = {

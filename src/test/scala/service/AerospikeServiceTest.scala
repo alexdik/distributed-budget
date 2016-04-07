@@ -34,7 +34,7 @@ class AerospikeServiceTest extends TestKit(ActorSystem("testSystem"))
   }
 
   before {
-    aerospikeService = TestActorRef(new AerospikeService((config), system))
+    aerospikeService = TestActorRef(new AerospikeService((config)))
   }
 
   test("queries client spent money from cache") {
