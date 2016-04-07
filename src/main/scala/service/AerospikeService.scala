@@ -1,30 +1,51 @@
 package service
 
-import akka.actor.Actor
-import com.aerospike.client._
-import com.aerospike.client.async.AsyncClient
+import akka.actor.{Actor, ActorSystem, Props}
+import cache.DbCache
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
+import dao.AerospikeDao
+import service.AerospikeServiceEvents._
+import scala.concurrent.duration._
 
-case class QueryMoneySpend(clientId: Int)
+object AerospikeServiceProps extends ServiceProps {
+  override def namespace: String = "test"
 
-case class MoneySpend(spent: Int)
+  override def statisticsSet: String = "statistics"
+}
 
-object AerospikeService {
-  val namespace = "test"
-  val statisticsSet = "statistics"
-  val moneySpent = new Key(namespace, statisticsSet, "moneySpent")
+object AerospikeServiceEvents {
+
+  //events
+  case class GetData(clientId: Int)
+
+  case object SynchronizeData
+
+  case class MakePurchase(id: Int, value: Int)
+
+  case class AddOrUpdateData(updateData: Map[Int, Int])
+
+  case object Stop
+
 }
 
 class AerospikeService(config: Config) extends Actor with StrictLogging {
+  import scala.concurrent.ExecutionContext.Implicits.global
 
-  import AerospikeService._
-
-  val client = new AsyncClient(config.getString("aerospike.host"), config.getInt("aerospike.port"))
+  val dao = new AerospikeDao(config, AerospikeServiceProps)
+  val dbCache = context.system.actorOf(Props(new DbCache))
+  val synchronizer = context.system.scheduler.schedule(1 seconds, 1 seconds, this.self, SynchronizeData)
 
   def receive: Receive = {
-    case QueryMoneySpend(1) =>
-      sender ! MoneySpend(10)
+    case GetData(clientId) => dao.getDataAsync(clientId, dao.getDefaultAsyncReadListener(sender()))
+    case purchase: MakePurchase => dbCache ! purchase
+    case SynchronizeData => dbCache ! SynchronizeData
+    case AddOrUpdateData(updateData) => dao.updateData(updateData)
+    case Stop =>
+      synchronizer.cancel()
+      dbCache ! SynchronizeData
+      context.stop(dbCache)
   }
-
 }
+
+
